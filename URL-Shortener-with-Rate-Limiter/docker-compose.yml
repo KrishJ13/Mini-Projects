@@ -1,0 +1,31 @@
+# Our project is split into mulitiple services, each will run on its own container
+services:
+  # Use build instead of image here, because WE wrote the custom Dockerfile for this
+  api:
+    build: ./api
+    ports:
+      - "8000:80"
+    # Instead of just depends on (some other service), we can handle the race condition and expect a service_healthy return. (This condition: service_healthy compares Dockerfile syntax. In the healthcheck section, we need to determine what 'test' commands return a healthy ping for that service)
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    # We don't need a custom Dockerfile for Postgres; so we use the official image
+    image: postgres:16-alpine
+    # Everything happens in our container. On first boot, these create a username=user, password=password, and database (using these arbitrary values, and only for this container)
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: url_shortener_db
+    # url_shortener_db_data is the name of our volume that is managed by docker. /var/lib/postgresql/data is the official postgresql path where the data is stored (look in image docs). We need to mount our volume TO this location for the data to persist
+    volumes:
+      - url_shortener_db_data:/var/lib/postgresql/data
+    healthcheck:
+      # Unique sequence of commands to get health check ping for Postgres
+      test: ["CMD-SHELL", "pg_isready -U user -d url_shortener_db"]
+      interval: 5s
+      retries: 5
+# Tell Docker compose it needs to manage our mounted volume url_shortener_db_data
+volumes:
+  url_shortener_db_data: {}
