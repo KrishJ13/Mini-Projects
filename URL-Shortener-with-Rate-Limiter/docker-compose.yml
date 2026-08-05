@@ -6,6 +6,9 @@ services:
     ports:
       - "8000:80"
     # Instead of just depends on (some other service), we can handle the race condition and expect a service_healthy return. (This condition: service_healthy compares Dockerfile syntax. In the healthcheck section, we need to determine what 'test' commands return a healthy ping for that service)
+    environment:
+      # Add env variables to api service. Referes to compose service db
+      DATABASE_URL: postgresql://user:password@db:5432/url_shortener_db
     depends_on:
       db:
         condition: service_healthy
@@ -21,6 +24,8 @@ services:
     # url_shortener_db_data is the name of our volume that is managed by docker. /var/lib/postgresql/data is the official postgresql path where the data is stored (look in image docs). We need to mount our volume TO this location for the data to persist
     volumes:
       - url_shortener_db_data:/var/lib/postgresql/data
+      # Mount our init.sql file (that only runs when volume is empty)
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       # Unique sequence of commands to get health check ping for Postgres
       test: ["CMD-SHELL", "pg_isready -U user -d url_shortener_db"]
